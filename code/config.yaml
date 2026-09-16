@@ -1,0 +1,42 @@
+# svg_pptx_pipeline 設定ファイル
+# ─────────────────────────────────────────────
+font:
+  default_name: "Meiryo UI"
+  font_file: "C:/Windows/Fonts/meiryo.ttc"
+  font_file_index: 2        # 2 = Meiryo UI Regular, 3 = Meiryo UI Italic
+  bold_file_index: 2        # meiryo.ttcにはUI Boldがないため、bold指定はPPTX側のfont.bold=Trueで表現
+  min_size_pt: 8
+  max_shrink_steps: 20      # フィットのための縮小繰り返し上限
+  shrink_step_pt: 0.5
+
+text_box:
+  word_wrap: true
+  autofit: shrink_on_overflow   # PPTX側のオートフィットも保険で有効化
+  inner_margin_px: 4            # 背景boxとテキストの内側マージン(SVG px単位)
+  line_spacing: 1.15
+  # 浮遊(非contained)テキストの背景塗り。元SVGのmask(線に穴を開けて文字を
+  # 見せる意匠)を再現するため、線の上に乗る浮遊ラベルは不透明色で隠す。
+  # containedなテキスト(box内)は常に透明のまま(箱の色を活かす)。
+  floating_bg_fill: "FFFFFF"
+
+mapping:
+  # テキストの代表点(x, 推定top)が背景shapeの矩形に含まれるかどうかで所属判定。
+  # 含まれるshapeが無い場合は最近傍(距離)でフォールバック。
+  containment_margin_px: 2
+  fallback_max_distance_px: 60
+  # <image>がコンテナ候補になるための最小の幅・高さ(px)。これ未満はアイコン画像とみなし、
+  # テキストの幅制約には使わない(ADR-012)。
+  image_container_min_px: 120
+
+concat:
+  # 同じ背景shapeに所属するtext要素をY昇順で1つのテキストボックスにconcatする。
+  # ただし下記より離れている場合は別ブロックとして分割する。
+  max_gap_ratio: 2.2   # (次テキストのtop - 前テキストのbottom) / 前テキストのfont_size を超えたら別ブロック
+  # コンテナ(shape)の面積がこれを超える場合はconcatしない。
+  # 大きい外枠(グループ・セクション枠)にフォールバック所属した複数の無関係な
+  # 浮遊テキスト(矢印ラベル等)が誤って1つのテキストボックスに結合されるのを防ぐ。
+  container_area_threshold_px2: 60000
+
+qa:
+  export_dpi: 150
+  overflow_tolerance_px: 2

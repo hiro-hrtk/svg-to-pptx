@@ -1,0 +1,22 @@
+# REF/ は消失前のプロジェクトから復旧できた断片(履歴参照用)。
+# 正本は docs/ に再構築済みのため、リポジトリには含めない。
+REF/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# uv / venv
+.venv/
+
+# 変換パイプラインの出力(build_pptx.py / qa_capture.py で再生成可能なため追跡しない)
+output/
+
+# OS / エディタ
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp

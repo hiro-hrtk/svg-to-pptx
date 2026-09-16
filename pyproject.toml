@@ -1,0 +1,11 @@
+[project]
+name = "svg-to-pptx"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.12"
+dependencies = [
+    "pillow>=12.3.0",
+    "python-pptx>=1.0.2",
+    "pywin32>=312",
+    "pyyaml>=6.0.3",
+]
