@@ -10,7 +10,9 @@ SVGファイルをPowerPointのネイティブオブジェクト(図形・コネ
 詳細は [docs/CONCEPT.md](docs/CONCEPT.md) / [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) を参照。
 
 Claude Codeのスキルとしては `svg-to-pptx` という名前で登録されている([REF/SKILL.md](REF/SKILL.md)がベース、
-実体は `~/.claude/skills/svg-to-pptx/SKILL.md`)。
+実体は [.claude/skills/svg-to-pptx/SKILL.md](.claude/skills/svg-to-pptx/SKILL.md)、プロジェクトローカル)。
+グローバルなスキルとして他プロジェクトからも呼び出したい場合は、このファイルを
+`~/.claude/skills/svg-to-pptx/SKILL.md` に手動でコピー(クローン)すること。
 
 ---
 
@@ -51,6 +53,8 @@ uv sync
 svg-to-pptx/
 ├── CLAUDE.md             ← このファイル
 ├── pyproject.toml / uv.lock
+├── .claude/
+│   └── skills/svg-to-pptx/SKILL.md  ← Claude Codeスキル定義(プロジェクトローカル)
 ├── code/                 ← Pythonソースコード
 │   ├── svg_elements.py   パース層
 │   ├── mapping.py        マッピング層
