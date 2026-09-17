@@ -14,8 +14,10 @@ __pycache__/
 # 変換パイプラインの出力(build_pptx.py / qa_capture.py で再生成可能なため追跡しない)
 output/
 
-# テスト用SVG(社内向けの具体的な図を含むため、Publicリポジトリには含めない。ローカルのみ)
-input/
+# input/ 直下は既定で除外し、テスト用SVGを置く input/test/ だけ追跡する。
+# (本番向けの入力を input/ 直下に置く運用のため、それらはリポジトリに含めない)
+input/*
+!input/test/
 
 # OS / エディタ
 .DS_Store

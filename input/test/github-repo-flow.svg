@@ -1,0 +1,185 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1178" viewBox="0 0 1280 1178">
+<defs>
+<style><![CDATA[
+      text { font-family: 'Meiryo UI','Yu Gothic','Noto Sans CJK JP',sans-serif; fill:#10263b; }
+      .title { font-size:34px; font-weight:700; }
+      .subtitle { font-size:18px; font-weight:400; }
+      .laneTitle { font-size:21px; font-weight:700; fill:#fff; }
+      .laneSub { font-size:15px; font-weight:400; fill:#fff; }
+      .boxTitle { font-size:19px; font-weight:700; fill:#111; }
+      .body { font-size:16px; font-weight:400; fill:#111; }
+      .small { font-size:14px; font-weight:400; fill:#111; }
+      .decision { font-size:18px; font-weight:700; fill:#111; }
+      .footTitle { font-size:17px; font-weight:700; }
+      .foot { font-size:14px; font-weight:400; fill:#111; }
+      .flow { fill:none; stroke:#111; stroke-width:2; stroke-linecap:square; stroke-linejoin:miter; marker-end:url(#arrow); }
+      .join { fill:none; stroke:#111; stroke-width:2; stroke-linecap:square; stroke-linejoin:miter; }
+    ]]></style>
+<marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+<path d="M0 0 L10 5 L0 10 Z" fill="#111"/>
+</marker>
+<linearGradient id="leftBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7fbff"/><stop offset="1" stop-color="#edf6ff"/></linearGradient>
+<linearGradient id="midBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7fcf8"/><stop offset="1" stop-color="#eff8f1"/></linearGradient>
+<linearGradient id="rightBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbf9ff"/><stop offset="1" stop-color="#f4efff"/></linearGradient>
+</defs>
+ 
+  <rect width="1280" height="1178" fill="#fff"/>
+<text x="14" y="38" class="title">GitHubリポジトリ申請・審査フロー</text>
+<text x="14" y="70" class="subtitle">目的：野良AIの防止とリスクの適切な管理のため、設計内容を審査し、適切な方法でGitHubリポジトリを払い出す。</text>
+ 
+  <!-- swimlane bodies -->
+<rect x="13" y="90" width="376" height="915" rx="6" fill="url(#leftBg)" stroke="#8dc4fb" stroke-width="1.5"/>
+<rect x="393" y="90" width="555" height="915" rx="6" fill="url(#midBg)" stroke="#91d19c" stroke-width="1.5"/>
+<rect x="953" y="90" width="312" height="915" rx="6" fill="url(#rightBg)" stroke="#b6a2f0" stroke-width="1.5"/>
+ 
+  <!-- lane headers -->
+<path d="M19 90 H383 Q389 90 389 96 V170 H13 V96 Q13 90 19 90 Z" fill="#2f7fd6"/>
+<path d="M399 90 H942 Q948 90 948 96 V170 H393 V96 Q393 90 399 90 Z" fill="#3c964a"/>
+<path d="M959 90 H1259 Q1265 90 1265 96 V170 H953 V96 Q953 90 959 90 Z" fill="#6b4ab9"/>
+ 
+  <!-- header icons: pure vector objects -->
+<g transform="translate(137 106)" fill="#fff">
+<circle cx="15" cy="9" r="8"/><path d="M2 34c1-10 6-15 13-15s12 5 13 15z"/>
+</g>
+<text x="185" y="125" class="laneTitle">申請者</text>
+<text x="185" y="154" class="laneSub">（開発を行う個人）</text>
+ 
+  <g transform="translate(603 106)" fill="#fff">
+<circle cx="15" cy="9" r="8"/><path d="M2 34c1-10 6-15 13-15s12 5 13 15z"/>
+</g>
+<text x="645" y="125" class="laneTitle">審査者</text>
+<text x="645" y="154" class="laneSub">（所属部署の承認者・情報セキュリティ担当等）</text>
+ 
+  <g transform="translate(1035 106)" fill="#fff">
+<circle cx="15" cy="9" r="8"/><path d="M2 34c1-10 6-15 13-15s12 5 13 15z"/>
+</g>
+<text x="1075" y="125" class="laneTitle">GitHub管理者</text>
+<text x="1022" y="154" class="laneSub">（GitHub Enterprise 管理者）</text>
+ 
+  <!-- applicant -->
+<rect x="105" y="184" width="191" height="48" rx="24" fill="#dcecff" stroke="#1d65ad" stroke-width="1.7"/>
+<text x="200.5" y="215" text-anchor="middle" class="boxTitle">開始</text>
+ 
+  <rect x="68" y="258" width="258" height="172" rx="5" fill="#fff" stroke="#1d65ad" stroke-width="1.7"/>
+<!-- document icon -->
+<g transform="translate(84 277)" stroke="#10263b" stroke-width="3" fill="none">
+<path d="M0 0h20l11 11v31H0z"/><path d="M20 0v12h11"/><path d="M7 22h17M7 30h17"/>
+</g>
+<text x="132" y="292" class="boxTitle">申請書類の準備</text>
+<text x="130" y="322" class="body">・README（設計資料）</text>
+<text x="130" y="348" class="body">・利用目的・概要</text>
+<text x="130" y="374" class="body">・利用するAI・サービス</text>
+<text x="130" y="400" class="body">・データの取扱い</text>
+<text x="130" y="426" class="body">・構成・外部接続先 など</text>
+ 
+  <rect x="80" y="463" width="237" height="71" rx="5" fill="#fff" stroke="#1d65ad" stroke-width="1.7"/>
+<text x="198.5" y="491" text-anchor="middle" class="boxTitle">申請</text>
+<text x="198.5" y="519" text-anchor="middle" class="body">申請書類を提出</text>
+ 
+  <!-- reviewer -->
+<rect x="438" y="233" width="264" height="69" rx="5" fill="#fff" stroke="#26743b" stroke-width="1.7"/>
+<text x="570" y="261" text-anchor="middle" class="boxTitle">申請内容の確認</text>
+<text x="570" y="288" text-anchor="middle" class="body">申請書類（README等）を確認</text>
+ 
+  <polygon points="570,331 686,382 570,433 454,382" fill="#fff" stroke="#26743b" stroke-width="1.7"/>
+<text x="570" y="376" text-anchor="middle" class="decision">業務データを</text>
+<text x="570" y="399" text-anchor="middle" class="decision">利用するか？</text>
+ 
+  <polygon points="570,471 686,522 570,573 454,522" fill="#fff" stroke="#26743b" stroke-width="1.7"/>
+<text x="570" y="528" text-anchor="middle" class="decision">個人利用のみか？</text>
+ 
+  <!-- simple review -->
+<rect x="436" y="620" width="269" height="88" rx="5" fill="#fff" stroke="#26743b" stroke-width="1.7"/>
+<text x="570.5" y="648" text-anchor="middle" class="boxTitle">簡易審査</text>
+<text x="459" y="678" class="body">・リスクが小さいか</text>
+<text x="459" y="702" class="body">・個人利用外への横展開ができないか</text>
+ 
+  <rect x="447" y="739" width="247" height="65" rx="5" fill="#fff" stroke="#26743b" stroke-width="1.7"/>
+<text x="570.5" y="765" text-anchor="middle" class="boxTitle">承認</text>
+<text x="570.5" y="790" text-anchor="middle" class="small">（簡易審査）</text>
+ 
+  <!-- detailed review -->
+<rect x="737" y="571" width="206" height="137" rx="5" fill="#fff" stroke="#26743b" stroke-width="1.7"/>
+<text x="840" y="600" text-anchor="middle" class="boxTitle">詳細審査</text>
+<text x="754" y="631" class="body">・目的・必要性の妥当性</text>
+<text x="754" y="656" class="body">・データ取扱いのリスク</text>
+<text x="754" y="681" class="body">・外部接続・セキュリティ</text>
+<text x="754" y="706" class="body">・運用体制・管理方法 など</text>
+ 
+  <rect x="741" y="739" width="198" height="65" rx="5" fill="#fff" stroke="#26743b" stroke-width="1.7"/>
+<text x="840" y="765" text-anchor="middle" class="boxTitle">承認</text>
+<text x="840" y="790" text-anchor="middle" class="small">（詳細審査）</text>
+ 
+  <!-- repo creation -->
+<rect x="979" y="787" width="262" height="143" rx="5" fill="#fff" stroke="#6b4ab9" stroke-width="1.7"/>
+<!-- repo mark as picture-like vector icon -->
+<g transform="translate(998 810)" fill="#111">
+<circle cx="17" cy="17" r="17"/><path d="M10 10h14v14H10z" fill="#fff"/><circle cx="14" cy="13" r="2" fill="#111"/><circle cx="20" cy="13" r="2" fill="#111"/>
+</g>
+<text x="1061" y="815" class="boxTitle">リポジトリの作成</text>
+<text x="1061" y="848" class="body">GitHub Enterprise に</text>
+<text x="1061" y="875" class="body">リポジトリを作成</text>
+<text x="1061" y="901" class="small">（原則：個人アカウントでの</text>
+<text x="1061" y="923" class="small">リポジトリ作成）</text>
+ 
+  <rect x="58" y="843" width="284" height="86" rx="5" fill="#fff" stroke="#1d65ad" stroke-width="1.7"/>
+<text x="200" y="872" text-anchor="middle" class="boxTitle">リポジトリの受領</text>
+<text x="200" y="900" text-anchor="middle" class="body">作成されたリポジトリの情報を受領</text>
+<text x="200" y="923" text-anchor="middle" class="body">開発を開始</text>
+ 
+  <rect x="105" y="954" width="191" height="48" rx="24" fill="#dcecff" stroke="#1d65ad" stroke-width="1.7"/>
+<text x="200.5" y="985" text-anchor="middle" class="boxTitle">完了</text>
+ 
+  <!-- flow connectors: all orthogonal, mirroring the source image -->
+<path class="flow" d="M200 232 V258"/>
+<path class="flow" d="M198.5 430 V463"/>
+<path class="flow" d="M317 498 H378 V267 H438"/>
+<path class="flow" d="M570 302 V331"/>
+<path class="flow" d="M570 433 V471"/>
+<path class="flow" d="M570 573 V620"/>
+<path class="flow" d="M570 708 V739"/>
+<path class="flow" d="M840 708 V739"/>
+ 
+  <!-- diamond 1 YES to detailed review -->
+<path class="flow" d="M686 382 H867 V571"/>
+<text x="703" y="357" class="small">はい</text>
+<text x="703" y="378" class="small">（業務データを利用する）</text>
+ 
+  <!-- diamond 1 NO to diamond 2 -->
+<text x="581" y="451" class="small">いいえ</text>
+<text x="581" y="468" class="small">（業務データを利用しない）</text>
+ 
+  <!-- diamond 2 NO to detailed review -->
+<path class="flow" d="M686 522 H817 V571"/>
+<text x="701" y="500" class="small">いいえ</text>
+<text x="701" y="520" class="small">（個人利用ではない）</text>
+ 
+  <!-- diamond 2 YES to simple review -->
+<text x="582" y="594" class="small">はい</text>
+<text x="582" y="612" class="small">（個人利用のみ）</text>
+ 
+  <!-- approvals merge, then repo creation -->
+<path class="join" d="M570 804 V840 H840"/>
+<path class="join" d="M840 804 V840"/>
+<path class="flow" d="M840 840 H979"/>
+ 
+  <!-- repo -> applicant receipt: fixed horizontal connector -->
+<path class="flow" d="M979 886 H342"/>
+<path class="flow" d="M200 929 V954"/>
+ 
+  <!-- footer -->
+<rect x="13" y="1020" width="1252" height="140" rx="6" fill="#f5f6f8" stroke="#e0e3e7"/>
+<rect x="33" y="1033" width="12" height="12" fill="#10263b"/>
+<text x="53" y="1045" class="footTitle">審査の考え方</text>
+<text x="34" y="1070" class="foot">・業務データを利用せず、個人利用のみの場合は簡易審査で承認。</text>
+<text x="34" y="1093" class="foot">・業務データを利用する場合、または個人利用ではない場合は内容を精査し、詳細審査を実施。</text>
+<text x="34" y="1116" class="foot">・審査観点の基本は「リスクが小さいか」「個人利用外への横展開ができないか」。</text>
+<text x="34" y="1139" class="foot">・承認後、GitHub管理者がGitHub Enterpriseにリポジトリを作成（原則：個人アカウント）。</text>
+ 
+  <rect x="806" y="1033" width="12" height="12" fill="#10263b"/>
+<text x="826" y="1045" class="footTitle">申請書類（README）の主な項目</text>
+<text x="806" y="1070" class="foot">・目的・概要　　・利用するAI / サービス</text>
+<text x="806" y="1093" class="foot">・データの取扱い（業務データの有無）</text>
+<text x="806" y="1116" class="foot">・システム構成・外部接続先</text>
+<text x="806" y="1139" class="foot">・運用方法・管理方法 / セキュリティ</text>
+</svg>

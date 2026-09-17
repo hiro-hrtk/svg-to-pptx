@@ -66,8 +66,8 @@ svg-to-pptx/
 │   ├── DECISIONS.md      (ADR)
 │   ├── TEST_CASES.md
 │   └── CHANGELOG.md
-├── input/                ← (.gitignore対象。社内の具体的な図を含みうるため非公開リポジトリには含めない)
-│   └── test/             ← テスト用サンプルSVG
+├── input/                ← input/直下(本番向け入力)は.gitignore対象。input/test/のみ追跡する
+│   └── test/             ← テスト用サンプルSVG(git追跡対象)
 ├── output/               ← 変換出力(PPTX・JSON・PNG)
 │   └── <session>/
 └── REF/                  ← 消失前に復旧できた旧ドキュメント一式(履歴参照用、正本はdocs/)

@@ -6,10 +6,10 @@
 |------------|------|------|-----------|
 | テストSVG A | 単一SVG | rect/circle/ellipse/line/polyline/polygon/path(ベジエ・楕円弧)/text混在。アイコン多数、密集レイアウトのインフォグラフィック | ✅ 検証済み |
 | テストSVG B | 単一SVG | CSSクラスでスタイル定義(font-size/weight/fill)、`<marker>`によるSVG標準矢じり、base64埋め込み`<image>`(アイコン)16個、tspan不使用(複数行はconcatで再構成)のアーキテクチャ図 | ✅ 検証済み |
-| テストSVG C | 単一SVG | `<style>`にCSS型セレクタ(`text{...}`)、`<g transform="translate(...)" fill="...">`によるアイコン(fill継承)、角丸ヘッダーを`<path>`で描画するフローチャート図 | ✅ 検証済み |
+| テストSVG C | 単一SVG(`github-repo-flow.svg`) | `<style>`にCSS型セレクタ(`text{...}`)、`<g transform="translate(...)" fill="...">`によるアイコン(fill継承)、角丸ヘッダーを`<path>`で描画するフローチャート図 | ✅ 検証済み |
 
-> テストSVGの実ファイルはリポジトリに含めていない(社内向けの具体的な図のため)。
-> 手元で試す場合は `input/test/` に任意のSVGを置き、このファイルに特徴を追記していく。
+> `input/test/` はgit追跡対象(`.gitignore`で`input/*`を除外しつつ`!input/test/`で復活させている)。
+> 社内向けの具体的な内容を含むSVGを追加する場合は、都度リポジトリに含めてよいか確認すること。
 
 ## 検証観点チェックリスト
 
