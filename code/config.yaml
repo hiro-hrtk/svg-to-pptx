@@ -18,14 +18,17 @@ text_box:
   # 見せる意匠)を再現するため、線の上に乗る浮遊ラベルは不透明色で隠す。
   # containedなテキスト(box内)は常に透明のまま(箱の色を活かす)。
   floating_bg_fill: "FFFFFF"
+  # コンテナの面積がこれ以下の場合、テキストはanchor_xを無視してコンテナ幅いっぱいに
+  # 広げ中央揃えにする(ADR-015)。小さいヘッダー等でanchor_x基準だと位置がずれる事故を防ぐ。
+  small_container_area_px2: 60000
 
 mapping:
   # テキストの代表点(x, 推定top)が背景shapeの矩形に含まれるかどうかで所属判定。
   # 含まれるshapeが無い場合は最近傍(距離)でフォールバック。
   containment_margin_px: 2
   fallback_max_distance_px: 60
-  # <image>がコンテナ候補になるための最小の幅・高さ(px)。これ未満はアイコン画像とみなし、
-  # テキストの幅制約には使わない(ADR-012)。
+  # <image>/閉じた塗りpathがコンテナ候補になるための最小の幅・高さ(px)。これ未満は
+  # アイコン画像・アイコン形状とみなし、テキストの幅制約には使わない(ADR-012/014)。
   image_container_min_px: 120
 
 concat:

@@ -8,6 +8,15 @@
 - `code/svg_elements.py`: SVG標準の`marker-end="url(#id)"`(`<defs><marker>`)に対応。線・pathの終点に
   向きを合わせた矢じりFreeformを追加描画する。
 - `code/svg_elements.py`: CSS単位付き数値(`38px`等)を許容する`_num()`ヘルパーを追加。
+- `code/svg_elements.py`: `<style>`内のCSS型セレクタ(`text{fill:...}`等)の解決に対応(ADR-018関連)。
+- `code/svg_elements.py`: `<g transform="translate(x y)">`(累積オフセット)、および祖先`<g>`から
+  fill/stroke/opacity等を継承するSVGの記述パターンに対応(ADR-018)。
+- `code/mapping.py`: 閉じた塗りつぶし`<path>`(角丸矩形をpathで描画したヘッダー等)をコンテナ候補に追加(ADR-014)。
+- `code/build_pptx.py`: 小さいコンテナ内の`anchor='middle'`テキストをコンテナ幅いっぱいに拡張して
+  中央揃えにする機能(ADR-015)。
+- `code/build_pptx.py`: PowerPointのスペルチェック誤検出抑制のため各runに`lang`/`altLang`、
+  Unicode範囲明示のため`<a:latin charset="0">`を設定(ADR-019)。
+- `code/run.ps1`: 実行ラッパー(ADR-020、下記Fixed参照)。
 
 ### Fixed
 - 小さい`<image>`(アイコン画像)がマッピングのコンテナ候補になり、直下のラベルが画像の狭い幅に
@@ -18,6 +27,20 @@
   隠れたPowerPointプロセスが残り続け、次回以降の`build_pptx.py`によるPPTX上書き保存が
   `PermissionError`で失敗する場合があった。既存インスタンスに接続した場合(`GetActiveObject`で
   取得できた場合)はQuit()せず、自分で新規起動した場合のみQuit()するよう修正。
+- ヘッダーが`<path>`で描画されておりコンテナ候補から外れ、フィット・配置が崩れる問題(ADR-014)。
+- pathコンテナ追加後、異なるフォントサイズのテキストが1ブロックにconcatされ、先頭要素のサイズで
+  全行が再描画されてはみ出す問題。`rect`コンテナでも同種の問題を確認したため、コンテナ種別に
+  依らずフォントサイズが完全一致する要素同士に限りconcatするよう一般化(ADR-016)。
+- 小コンテナ内のテキストがanchor_x基準で配置されるため、コンテナ幅より不必要に狭い/ずれた位置に
+  出ることがあった問題(ADR-015)。
+- フィット判定の許容量が`+0.5px`と甘く、3行以上のテキストがコンテナ端に接して表示される問題
+  (ADR-017、許容量を`-0.5px`に変更)。
+- `<g fill="#fff">`のように祖先グループにまとめて指定されたfill/stroke等が子要素に反映されず、
+  アイコン(人物シルエット等)が透明になって見えなくなる問題。また`<g transform="translate(...)">`が
+  無視され、アイコンが本来の位置とは異なる場所に描画される問題(いずれもADR-018)。
+- 開発機のアプリケーション制御ポリシーにより、uv venv内の`python.exe`ランチャーの実行がブロックされ
+  `uv run`が使えなくなった問題。`code/run.ps1`を追加し、ポリシー上信頼されているuvのベース
+  インタプリタを直接呼び出す方式に切り替えて対処(ADR-020)。
 
 ### Changed
 - なし

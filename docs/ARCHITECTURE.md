@@ -5,7 +5,9 @@
 SVGファイルをPowerPointのネイティブオブジェクト(図形・コネクタ・テキストボックス)に変換するパイプライン。
 PNG貼り付けではなく、PPTXで完全に編集可能なスライドを生成することが目標。
 
-実行は `uv run python code/build_pptx.py ...` / `uv run python code/qa_capture.py ...`。
+実行は `.\code\run.ps1 code\build_pptx.py ...` / `.\code\run.ps1 code\qa_capture.py ...`
+(このマシンではvenvランチャーがアプリケーション制御ポリシーでブロックされるため`uv run`は使わない。
+詳細はCLAUDE.md「実行環境」、ADR-020参照)。
 
 ---
 
@@ -19,23 +21,27 @@ code/
 ├── fit_text.py         [計測層]     PIL実測幅でのテキスト折り返し・サイズフィット
 ├── build_pptx.py      [出力層]     全体パイプライン + PPTX生成 + CLI
 ├── qa_capture.py       [QA層]       PowerPoint COM → PNG出力
+├── run.ps1              [実行ラッパー] venvランチャーblock対策(ADR-020)
 └── config.yaml         [設定]       閾値・フォント・レイアウト定数
 ```
 
 ### `svg_elements.py` — パース層
 
-- 入力: no_text.svg / text_only.svg (どちらも同じ座標系を前提。transform属性は非対応)
+- 入力: no_text.svg / text_only.svg (どちらも同じ座標系を前提)
 - 出力: `ShapeElem[]` / `TextElem[]`
 - SVG属性とinline styleを統合して正規化(`get_prop`関数)
 - 対応要素: `<rect>` `<circle>` `<ellipse>` `<line>` `<polyline>` `<polygon>` `<path>` `<image>` `<text>`(`<tspan>`込み)
 - `<path>` の `d` 属性は `parse_path_d()` がトークナイズし、`M/L/H/V/C/Q/A/Z`(絶対/相対)を折れ線サンプリングする。
   三次/二次ベジエは `_cubic_bezier_points`/`_quad_bezier_points`、楕円弧は `_arc_to_points`
   (SVG仕様のcenter parameterization変換)でサンプル点列に変換する。
-- `<g>` はフラット化して子孫を辿る(`_iter_recursive`)。このプロジェクトが扱うSVGは`transform`を
-  使わない前提(テスト済みの2件とも transform なし)。
+- `<g>` はフラット化して子孫を辿る(`_iter_recursive`)。`transform="translate(x y)"` は累積オフセットとして
+  追跡し、`_translate_shape()`で子要素の座標に加算する(ADR-018)。scale/rotate/matrixは非対応。
+- 祖先`<g>`の直接指定(fill/stroke/stroke-width/opacity/font-size/font-weight/font-family/text-anchor)を
+  `_own_specified_props()`で蓄積し、子要素が自分で持たない場合のフォールバック(`_prop()`)として使う
+  (SVGの継承ルール対応、ADR-018)。
 - `fill="url(#id)"` は `_parse_defs()` で集めたgradient stopの平均色に解決する。
-- `<style>`内の単純なクラスセレクタ(`.name{...}`)を`_parse_style_rules()`で解決し、`get_prop()`が
-  `inline style > CSSクラス > 直接属性 > default`の優先順位で値を返す(ADR-012関連の背景参照)。
+- `<style>`内の単純なクラスセレクタ(`.name{...}`)と型セレクタ(`text{...}`)を`_parse_style_rules()`で解決し、
+  `get_prop()`が `inline style > CSSクラス > CSS型セレクタ > 直接属性 > default`の優先順位で値を返す。
 - `marker-end="url(#id)"`を`_parse_markers()`で解決した`<marker>`定義と組み合わせ、線・pathの
   終点に矢じり形状のFreeformを追加描画する(`_build_marker_shape`/`_line_angle`)。
 - `<text>` は同一要素内の`<tspan>`群を1つの `TextElem.lines`(複数行)にまとめる。**別々の`<text>`要素同士の
@@ -45,9 +51,10 @@ code/
 
 - 入力: `ShapeElem[]` + `TextElem[]` + `svg_size`(キャンバス全体のサイズ)
 - 出力: `{text_id: shape_id}` + `contained_ids` (set)
-- コンテナ候補は `kind in (rect, image)` のみ。かつキャンバスの90%以上を覆う背景矩形は除外する
-  (`build_mapping(..., svg_size=...)`)。`image`は幅・高さが`image_container_min_px`(既定120px)
-  未満の場合も除外する(小さいアイコン画像がラベルの幅制約になってしまうのを防ぐ、ADR-012)。
+- コンテナ候補は `kind in (rect, image)` に加え、閉じた塗りつぶし`path`(角丸矩形をpathで描画した
+  ヘッダー等、ADR-014)。かつキャンバスの90%以上を覆う背景矩形は除外する(`build_mapping(..., svg_size=...)`)。
+  `image`/`path`は幅・高さが`image_container_min_px`(既定120px)未満の場合も除外する(小さい
+  アイコンがラベルの幅制約になってしまうのを防ぐ、ADR-012/014)。
 - **真の内包**: テキストの代表点(x=anchor_x, y=推定top)がshapeのBBoxに`containment_margin_px`の
   余裕を持って含まれる。複数の候補が内包する場合は面積最小のものを選ぶ。
 - **フォールバック**: 内包するshapeがない場合、距離`fallback_max_distance_px`以内の最近傍shapeに割り当てる。
@@ -58,7 +65,8 @@ code/
 - 入力: `TextElem[]` + マッピング情報
 - 出力: `TextBlock[]`(複数TextElemをY昇順に結合したもの)
 - 結合条件: 同一コンテナ かつ 縦近接(`max_gap_ratio`) **かつ** 横近接(同程度のanchor_x)
-- 大面積コンテナ(`container_area_threshold_px2`)はconcat対象外
+  **かつ** フォントサイズが完全一致(ADR-016。`TextBlock`は単一font_sizeしか持てないため)
+- 大面積コンテナ(`container_area_threshold_px2`)・閉じた塗り`path`コンテナ(ADR-014)はconcat対象外
 - マッピング先が無い(`shape_id is None`)テキストは、他のテキストと結合されず必ず単独のブロックになる
 
 ### `fit_text.py` — 計測層
@@ -71,6 +79,8 @@ code/
 - フォントサイズ自動縮小: `shrink_step_pt`刻みで`max_shrink_steps`回まで試行、下限は`min_size_pt`相当
 - ブロックの高さ(`box_height_px`)は `font_size * (1 + (行数-1) * line_spacing)` で計算する。
   1行だけのブロックの高さが`line_spacing`倍に膨らんで隣接ブロックと重ならないようにするための式。
+- フィット判定の許容量は `content_width_px - 0.5` のようにマイナス側(ADR-017)。プラス側だと
+  「収まった」判定でも実際の描画で枠線に接して見えることがあったため。
 
 ### `build_pptx.py` — 出力層
 
@@ -85,6 +95,8 @@ code/
   - opacityはXML直接操作(`a:alpha`要素をsolidFill配下に追加)で反映する。
 - `place_text_block()`: テキスト配置の核心ロジック
   - `anchor='start'` → `box_l = anchor_x` / `'middle'` → `anchor_x - box_width/2` / `'end'` → `anchor_x - box_width`
+  - 例外: 小さいコンテナ(面積`small_container_area_px2`以下)内の`anchor='middle'`は、anchor_xを無視して
+    コンテナ幅いっぱいに広げ中央揃えにする(`is_small_container`、ADR-015)。`start`/`end`は対象外。
   - 縦位置は原則 `block.top`。ただし「元は1行 かつ fit結果が複数行」の場合のみ、コンテナ内で縦中央揃えに補正
   - `content_width_px`/`content_height_px` は **真に内包されている場合のみ** コンテナの実サイズから計算する。
     フォールバック(浮遊)テキストは制約なし(自然サイズ)とする(ADR-010関連。極小のアイコン用rectに
@@ -93,12 +105,24 @@ code/
   - `tf.word_wrap = False`(折り返しは全てfit_text側で確定済みのため、PPTX側の再折り返しに委ねない)
   - 行間(`paragraph.line_spacing`)は倍率ではなく`Pt()`による絶対値指定(PowerPointの「単一行間隔」が
     フォント内部メトリクス依存でfont_sizeより大きくなることがあるため)
+  - `_set_run_lang_and_charset()`: PowerPointのスペルチェック誤検出抑制のため各runに
+    `lang="ja-JP"`/`altLang="ja-JP"`、Unicode範囲明示のため`<a:latin charset="0">`を設定する(ADR-019)
 
 ### `qa_capture.py` — QA層
 
 - PowerPoint COMオブジェクト経由でスライドをPNG出力(150 DPI)
 - Windows専用(COM依存)。`PageSetup.SlideWidth/Height`はポイント単位なので `/72*dpi` でpx換算する
 - 生成PPTXの視覚確認に使用。CIには組み込まず手動QAとして運用
+- 既存のPowerPointインスタンスに接続できた場合(`GetActiveObject`)は`Quit()`せず、自分で新規起動した
+  場合のみ`Quit()`する(ユーザーの他のプレゼンテーションを巻き添えで閉じないため)
+
+### `run.ps1` — 実行ラッパー
+
+- `uv run`が使えない環境(ADR-020)向けに、uvのベースインタプリタを`uv python find 3.12`で動的に
+  解決し、venvの`site-packages`(pywin32関連サブディレクトリ込み)を`PYTHONPATH`に設定してから
+  直接実行する
+- ASCII文字のみで記述する(PowerShell 5.1がUTF-8(BOM無し)の非ASCII文字を含むスクリプトを
+  誤ってシステムのコードページで解釈し、パースエラーになる問題を回避するため)
 
 ---
 

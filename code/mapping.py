@@ -1,7 +1,8 @@
 """マッピング層。TextElem を「所属するShapeElem」に対応付ける。
 
 真の内包(contained)と最近傍フォールバックを区別する(ADR-003)。
-コンテナ候補は rect / image のみ(円・線・pathなどの装飾図形は文字を内包しない前提)。
+コンテナ候補は rect / image / 閉じた塗りつぶしpath(角丸矩形等をpathで描画したヘッダー等、ADR-014)。
+円・線・開いたpathなどの装飾図形は文字を内包しない前提。
 """
 from __future__ import annotations
 
@@ -31,14 +32,21 @@ def build_mapping(shapes, texts, config, svg_size=None):
     margin = mcfg.get("containment_margin_px", 2)
     fallback_max = mcfg.get("fallback_max_distance_px", 60)
 
-    image_min_px = mcfg.get("image_container_min_px", 120)
+    small_min_px = mcfg.get("image_container_min_px", 120)
+
+    def _big_enough(s):
+        return s.bbox[2] >= small_min_px and s.bbox[3] >= small_min_px
+
     containers = [
         s for s in shapes
-        if s.kind == "rect" or (s.kind == "image" and s.bbox[2] >= image_min_px and s.bbox[3] >= image_min_px)
+        if s.kind == "rect"
+        or (s.kind == "image" and _big_enough(s))
+        or (s.kind == "path" and s.closed and s.fill and _big_enough(s))
     ]
-    # 小さい<image>(アイコン画像)はコンテナ候補から除外する(ADR-012)。
-    # アイコン画像の直下に置かれたキャプションが、本来無関係なアイコンの狭い幅に
-    # 「内包」判定されてしまい、単語の途中で折り返される事故を防ぐため。
+    # 小さい<image>/<path>(アイコン画像・アイコン形状)はコンテナ候補から除外する(ADR-012/014)。
+    # アイコン直下に置かれたキャプションが、本来無関係なアイコンの狭い幅に「内包」判定されて
+    # しまい、単語の途中で折り返される事故を防ぐため。
+    # 閉じた塗りつぶしpath(角丸矩形をpathで描画したヘッダー等)もコンテナ候補に含める(ADR-014)。
 
     # キャンバス全面を覆う背景矩形は「内包図形」の候補から除外する。
     # 除外しないと、すべてのテキストがこの巨大矩形に内包され(面積最小選択が機能せず)、

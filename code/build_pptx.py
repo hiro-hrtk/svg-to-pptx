@@ -17,6 +17,7 @@ from xml.etree import ElementTree as ET
 import yaml
 from pptx import Presentation
 from pptx.dml.color import RGBColor
+from pptx.enum.lang import MSO_LANGUAGE_ID
 from pptx.enum.shapes import MSO_CONNECTOR, MSO_SHAPE
 from pptx.enum.text import PP_ALIGN
 from pptx.oxml.ns import qn
@@ -210,6 +211,17 @@ ANCHOR_ALIGN = {
 }
 
 
+def _set_run_lang_and_charset(run):
+    """PowerPointのスペルチェック誤検出(日本語への赤波線)を抑制するためlang/altLangを、
+    Meiryo UIのUnicode範囲を明示するためa:latinのcharsetを設定する。
+    """
+    rPr = run._r.get_or_add_rPr()
+    run.font.language_id = MSO_LANGUAGE_ID.JAPANESE
+    rPr.set("altLang", "ja-JP")
+    latin = rPr.get_or_add_latin()
+    latin.set("charset", "0")
+
+
 def place_text_block(slide, block: concat_text.TextBlock, shapes_by_id, cm: CoordMapper, config):
     inner_margin_px = config.get("text_box", {}).get("inner_margin_px", 4)
     line_spacing = config.get("text_box", {}).get("line_spacing", 1.15)
@@ -226,8 +238,26 @@ def place_text_block(slide, block: concat_text.TextBlock, shapes_by_id, cm: Coor
 
     fit = fit_text.fit_block(block, content_width_px, content_height_px, config)
 
+    small_container_area_px2 = config.get("text_box", {}).get("small_container_area_px2", 60000)
+    is_small_container = (
+        block.contained and container is not None
+        and content_width_px is not None
+        and container.area <= small_container_area_px2
+        # anchor='middle'(元々中央揃え意図)のみ対象。start/endはコンテナ内の他要素(アイコン等)を
+        # 避けるために意図的にその位置にあることが多く、強制的に幅いっぱいに広げると重なる。
+        and block.anchor == "middle"
+    )
+
     box_width_px = fit.box_width_px if fit.box_width_px > 0 else fit.font_size_px
-    if block.anchor == "start":
+    align_override = None
+    if is_small_container:
+        # 小さいコンテナ内はanchor_xに関わらずコンテナ幅いっぱいに広げて中央揃えにする(ADR-015)。
+        # anchor_x基準だとコンテナ幅より不必要に狭い/ずれた位置に出ることがあったため、
+        # 小さいコンテナに限りコンテナ自身の幅を信頼する。
+        box_l_px = container.bbox[0] + inner_margin_px
+        box_width_px = content_width_px
+        align_override = PP_ALIGN.CENTER
+    elif block.anchor == "start":
         box_l_px = block.left
     elif block.anchor == "end":
         box_l_px = block.left - box_width_px
@@ -271,7 +301,7 @@ def place_text_block(slide, block: concat_text.TextBlock, shapes_by_id, cm: Coor
     box.line.fill.background()
 
     font_pt = max(cm.px_to_pt(fit.font_size_px), 1.0)
-    align = ANCHOR_ALIGN.get(block.anchor, PP_ALIGN.LEFT)
+    align = align_override or ANCHOR_ALIGN.get(block.anchor, PP_ALIGN.LEFT)
     bold = _is_bold(block.font_weight)
 
     # PowerPointの「単一行間隔」はフォント内部メトリクスに依存し、font_sizeより
@@ -288,6 +318,7 @@ def place_text_block(slide, block: concat_text.TextBlock, shapes_by_id, cm: Coor
         run.font.bold = bold
         run.font.name = config.get("font", {}).get("default_name", "Meiryo UI")
         run.font.color.rgb = RGBColor.from_string(block.fill if block.fill else "000000")
+        _set_run_lang_and_charset(run)
 
     return box, fit
 

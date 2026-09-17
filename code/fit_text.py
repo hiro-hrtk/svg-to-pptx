@@ -108,8 +108,11 @@ def fit_block(block, content_width_px, content_height_px, config) -> FitResult:
         # 不必要に大きくなると、隣接する独立したテキストブロック同士が視覚的に重なるため)。
         total_h = font_size * (1 + (len(lines) - 1) * line_spacing)
 
-        width_ok = content_width_px is None or max_w <= content_width_px + 0.5
-        height_ok = content_height_px is None or total_h <= content_height_px + 0.5
+        # 許容量はプラスではなくマイナス(=わずかに余裕を持たせる側)にする。
+        # +0.5だと境界ぎりぎりで「収まった」と判定され、実際の描画で枠線に接して
+        # 見えることがあったため(特に3行以上のブロックで顕著)。
+        width_ok = content_width_px is None or max_w <= content_width_px - 0.5
+        height_ok = content_height_px is None or total_h <= content_height_px - 0.5
 
         if (width_ok and height_ok) or font_size <= min_size_px:
             return FitResult(font_size_px=font_size, lines=lines, box_width_px=max_w, box_height_px=total_h)

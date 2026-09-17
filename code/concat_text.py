@@ -2,6 +2,7 @@
 
 結合条件: 同一コンテナ かつ 縦近接 かつ 横近接(ADR-006)。
 大面積コンテナはconcat対象外(container_area_threshold_px2)。
+閉じた塗りpathコンテナ(ヘッダー等)もconcat対象外(ADR-014)。
 """
 from __future__ import annotations
 
@@ -46,9 +47,14 @@ def build_text_blocks(texts, mapping, contained_ids, shapes, config):
     blocks = []
     for key, group_texts in groups.items():
         shape_id = None if key.startswith("__solo__") else key
+        container = shapes_by_id.get(shape_id) if shape_id else None
         allow_concat = (
             shape_id is not None
             and _shape_area(shapes_by_id, shape_id) <= area_threshold
+            # 閉じた塗りpathコンテナ(角丸矩形をpathで描画したヘッダー等)はconcat対象外(ADR-014)。
+            # ヘッダー内は異なるフォントサイズのテキスト(タイトル+サブタイトル等)が同居しがちで、
+            # concatすると先頭要素のfont_sizeで全行を上書きしてしまい、はみ出す事故があったため。
+            and (container is None or container.kind != "path")
         )
 
         group_texts.sort(key=lambda t: t.y)
@@ -65,6 +71,10 @@ def build_text_blocks(texts, mapping, contained_ids, shapes, config):
                     and vgap >= -prev.font_size
                     and same_anchor_x
                     and t.anchor == prev.anchor
+                    # フォントサイズが異なる要素同士はconcatしない(ADR-016)。TextBlockは
+                    # 単一のfont_sizeしか持てないため、異サイズを混ぜると先頭要素のサイズで
+                    # 全行が上書きされ、はみ出しや意図しない拡大が起きるため。
+                    and t.font_size == prev.font_size
                 ):
                     for line in t.lines:
                         current["paragraphs"].append(line)

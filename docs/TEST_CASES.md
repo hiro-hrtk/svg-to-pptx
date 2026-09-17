@@ -6,6 +6,7 @@
 |------------|------|------|-----------|
 | テストSVG A | 単一SVG | rect/circle/ellipse/line/polyline/polygon/path(ベジエ・楕円弧)/text混在。アイコン多数、密集レイアウトのインフォグラフィック | ✅ 検証済み |
 | テストSVG B | 単一SVG | CSSクラスでスタイル定義(font-size/weight/fill)、`<marker>`によるSVG標準矢じり、base64埋め込み`<image>`(アイコン)16個、tspan不使用(複数行はconcatで再構成)のアーキテクチャ図 | ✅ 検証済み |
+| テストSVG C | 単一SVG | `<style>`にCSS型セレクタ(`text{...}`)、`<g transform="translate(...)" fill="...">`によるアイコン(fill継承)、角丸ヘッダーを`<path>`で描画するフローチャート図 | ✅ 検証済み |
 
 > テストSVGの実ファイルはリポジトリに含めていない(社内向けの具体的な図のため)。
 > 手元で試す場合は `input/test/` に任意のSVGを置き、このファイルに特徴を追記していく。
@@ -22,7 +23,10 @@
 - [ ] 浮遊テキスト(矢印ラベル等)が正しい位置に出ているか
 - [ ] 太字ヘッダーが折り返されてもコンテナからはみ出していないか(ADR-008/009)
 - [ ] 英単語混じりのラベルが単語の途中で改行されていないか(ADR-013)
-- [ ] アイコン画像下のラベルが画像の幅に引きずられて不必要に折り返されていないか(ADR-012)
+- [ ] アイコン画像・アイコン形状下のラベルが幅に引きずられて不必要に折り返されていないか(ADR-012/014)
+- [ ] 小さいコンテナ内の`anchor='middle'`テキストがコンテナ幅いっぱいに中央揃えされているか(ADR-015)
+- [ ] `anchor='start'`のキャプションがアイコン等の他要素と重なっていないか(ADR-015のスコープ確認)
+- [ ] 同一ボックス内でフォントサイズの異なるテキスト同士が誤って結合されていないか(ADR-016)
 
 ### テキストconcat
 - [ ] 同一ボックス内の複数行テキストがまとめられているか
@@ -36,6 +40,8 @@
 - [ ] `<polyline>`/`<polygon>`/`<path>` がFreeformとして出力されているか
 - [ ] 開いた(塗りなしの)path/polylineがデフォルトの青塗りで残っていないか(ADR-011再発防止)
 - [ ] 色・線幅・破線・opacityが元SVGと一致しているか
+- [ ] `<g transform="translate(...)">` 内の図形が正しい位置に描画されているか(ADR-018)
+- [ ] `<g fill="...">` のように親でまとめて指定された図形が、色が付かず消えていないか(ADR-018)
 
 ### 浮遊テキスト背景
 - [ ] 矢印線上の浮遊テキストに白背景が敷かれているか
@@ -50,13 +56,13 @@
 
 ## QA手順
 
-```bash
+```powershell
 # 1. PPTX生成
-uv run python code/build_pptx.py --session <session_name> \
-    --no-text input/test/<svg> --text-only input/test/<svg>
+.\code\run.ps1 code\build_pptx.py --session <session_name> `
+    --no-text input\test\<svg> --text-only input\test\<svg>
 
 # 2. PNG出力(要 PowerPoint インストール)
-uv run python code/qa_capture.py output/<session_name>/<file>.pptx
+.\code\run.ps1 code\qa_capture.py output\<session_name>\<file>.pptx
 
 # 3. 目視確認
 #    output/<session_name>/<file>_qa_slide1.png
@@ -71,3 +77,4 @@ uv run python code/qa_capture.py output/<session_name>/<file>.pptx
 |------|-------------|-----|------|------|
 | 2026-09-13 | (テストSVG A) | テストSVG A | ✅ Pass | スキル・パイプライン再構築後の初回テスト。ADR-007〜011のバグを発見・修正して合格。既知の軽微な制約(密集領域でのアイコン/ラベル近接、最下部キャプションの余白不足、装飾的な箇条書きの行間のわずかな重なり)は docs/CONCEPT.md の「既知の制約」に記載 |
 | 2026-09-13 | (テストSVG B) | テストSVG B | ✅ Pass | CSSクラス・SVG標準marker(矢じり)・base64画像への対応を新規実装。ADR-012(小さいimageをコンテナ候補から除外)・ADR-013(トークン単位の折り返し)のバグを発見・修正して合格。既知の限界: アイコン画像に文言が既に焼き込まれておりかつ同じラベルの`<text>`も別途重ねられている箇所で表示が二重になる(入力SVG側の重複、docs/CONCEPT.md参照) |
+| 2026-09-18 | (テストSVG C) | テストSVG C | ✅ Pass | CSS型セレクタ・`<g>`のtransform(translate)/fill継承・pathヘッダーへの対応を新規実装。ADR-014〜019のバグを発見・修正して合格。開発機のアプリケーション制御ポリシーでvenvランチャーがブロックされる問題が判明し、`code/run.ps1`(ADR-020)を追加して対処 |

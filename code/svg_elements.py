@@ -3,11 +3,14 @@
 対応要素: rect, line, polyline, polygon, circle, ellipse, path, image, text
 path は M/L/H/V/C/Q/A/Z (相対/絶対) をサンプリングして折れ線近似する。
 
-スタイルの解決優先順位: inline style > <style>内の単純なクラスセレクタ(.name{...}) >
-直接属性 > default (get_prop/_parse_style_rules参照)。
+スタイルの解決優先順位: inline style > <style>内のクラスセレクタ(.name{...}) >
+型セレクタ(text{...}等) > 直接属性 > default (get_prop/_parse_style_rules参照)。
 
 `marker-end="url(#id)"` (SVG標準の矢じり) は <defs><marker>...</marker></defs> を解決し、
 線・pathの終点に向き(orient=auto相当)を合わせた塗りつぶしFreeformとして追加描画する。
+
+`<g transform="translate(x y)">` に対応する(祖先の累積オフセットを子要素の座標に加算する)。
+scale/rotate/matrix等は非対応(既知の制約)。
 """
 from __future__ import annotations
 
@@ -116,15 +119,20 @@ def _num(value, default: float = 0.0) -> float:
     return float(m.group(1)) if m else default
 
 
-def get_prop(elem, name: str, class_rules: Optional[dict] = None, default=None):
-    """優先順位: inline style > CSSクラス(スタイルシート順で後勝ち) > 直接属性 > default。"""
+def get_prop(elem, name: str, style_rules: Optional[dict] = None, default=None):
+    """優先順位: inline style > CSSクラスセレクタ > CSS型セレクタ(タグ名) > 直接属性 > default。
+    (型セレクタはクラスセレクタよりCSS詳細度が低いため、この順で「後勝ち」にする)
+    """
     style = _style_dict(elem.get("style"))
     if name in style:
         return style[name]
-    if class_rules:
-        classes = (elem.get("class") or "").split()
+    if style_rules:
         value = None
-        for cname, rules in class_rules.items():
+        type_rules = style_rules.get("types", {}).get(_tag(elem), {})
+        if name in type_rules:
+            value = type_rules[name]
+        classes = (elem.get("class") or "").split()
+        for cname, rules in style_rules.get("classes", {}).items():
             if cname in classes and name in rules:
                 value = rules[name]
         if value is not None:
@@ -134,21 +142,37 @@ def get_prop(elem, name: str, class_rules: Optional[dict] = None, default=None):
     return default
 
 
-_CLASS_RULE_RE = re.compile(r"\.([\w-]+)\s*\{([^}]*)\}")
+def _prop(elem, name, style_rules, inherited, default=None):
+    """get_propの結果が無ければ、祖先<g>からの継承値(inherited)にフォールバックする。"""
+    value = get_prop(elem, name, style_rules, None)
+    if value is not None:
+        return value
+    if inherited and name in inherited:
+        return inherited[name]
+    return default
+
+
+_STYLE_RULE_RE = re.compile(r"([.\w-]+)\s*\{([^}]*)\}")
 
 
 def _parse_style_rules(root) -> dict:
-    """<style>ブロック中の単純なクラスセレクタ(`.name { prop:value; }`)を解決する。
-    複雑なセレクタ(結合子・疑似クラス・idセレクタ等)は非対応。
+    """<style>ブロック中の単純なクラスセレクタ(`.name{...}`)と型セレクタ(`text{...}`)を解決する。
+    結合子・疑似クラス・idセレクタ等の複雑なセレクタは非対応。
+    戻り値: {"classes": {name: {prop:value}}, "types": {tagname: {prop:value}}}
     """
-    rules: dict = {}
+    classes: dict = {}
+    types: dict = {}
     for style_elem in root.iter():
         if _tag(style_elem) != "style":
             continue
         text = "".join(style_elem.itertext())
-        for cname, body in _CLASS_RULE_RE.findall(text):
-            rules[cname] = _style_dict(body)
-    return rules
+        for selector, body in _STYLE_RULE_RE.findall(text):
+            props = _style_dict(body)
+            if selector.startswith("."):
+                classes[selector[1:]] = props
+            else:
+                types[selector] = props
+    return {"classes": classes, "types": types}
 
 
 def _resolve_gradient_color(grad_id: str, defs: dict) -> Optional[str]:
@@ -385,11 +409,20 @@ def parse_path_d(d: str):
     return points, closed
 
 
-def _element_opacity(elem, class_rules=None) -> float:
-    try:
-        return float(get_prop(elem, "opacity", class_rules, 1.0))
-    except (TypeError, ValueError):
-        return 1.0
+_TRANSLATE_RE = re.compile(r"translate\(\s*(-?[\d.]+)\s*[,\s]\s*(-?[\d.]+)?\s*\)")
+
+
+def _parse_translate_offset(transform_attr: Optional[str]):
+    """transform属性から translate(x[,y]) 分だけを合算して(dx,dy)を返す。
+    scale/rotate/matrix等の非対応transformは無視する(既知の制約)。
+    """
+    if not transform_attr:
+        return (0.0, 0.0)
+    dx = dy = 0.0
+    for mx, my in _TRANSLATE_RE.findall(transform_attr):
+        dx += float(mx)
+        dy += float(my) if my else 0.0
+    return (dx, dy)
 
 
 def _load_image_data(href: str):
@@ -403,14 +436,47 @@ def _load_image_data(href: str):
         return None, ext
 
 
-def _iter_recursive(elem):
-    """<g> をフラット化しつつ子孫を全て辿る(この描画順序のSVGはtransform無し前提)。"""
+_INHERITABLE_PROPS = (
+    "fill", "stroke", "stroke-width", "stroke-dasharray", "opacity",
+    "font-size", "font-weight", "font-family", "text-anchor",
+)
+
+
+def _own_specified_props(elem) -> dict:
+    """要素自身のinline style/直接属性だけから、継承可能なプロパティを拾う
+    (CSSクラス/型セレクタ由来の値は複雑になるため対象外、既知の制約)。
+    """
+    style = _style_dict(elem.get("style"))
+    result = {}
+    for name in _INHERITABLE_PROPS:
+        if name in style:
+            result[name] = style[name]
+        elif name in elem.attrib:
+            result[name] = elem.get(name)
+    return result
+
+
+def _iter_recursive(elem, offset=(0.0, 0.0), inherited=None):
+    """<g>をフラット化しつつ子孫を辿る。(elem, (dx,dy), inherited)を返す。
+
+    dx,dyは祖先の transform="translate(...)" の累積オフセット
+    (scale/rotate/matrix等は非対応、既知の制約)。
+
+    inheritedは祖先<g>で指定された fill/stroke/opacity 等(SVGの継承ルール)。
+    `<g fill="#fff">`のように親でまとめて指定するSVGが多いため、子要素が
+    自分で属性を持たない場合のフォールバックとして使う。opacityは本来「継承」ではなく
+    グループ合成だが、簡易的に子要素へそのまま伝播させる(既知の制約)。
+    """
+    inherited = inherited or {}
     for child in elem:
         tag = _tag(child)
+        tdx, tdy = _parse_translate_offset(child.get("transform"))
+        child_offset = (offset[0] + tdx, offset[1] + tdy)
         if tag == "g":
-            yield from _iter_recursive(child)
+            child_inherited = {**inherited, **_own_specified_props(child)}
+            yield from _iter_recursive(child, child_offset, child_inherited)
         else:
-            yield child
+            yield child, child_offset, inherited
 
 
 def _parse_markers(root) -> dict:
@@ -482,12 +548,28 @@ def _line_angle(points) -> float:
     return math.atan2(y2 - y1, x2 - x1)
 
 
-def _parse_shape_elem(elem, tag, defs, counter, class_rules=None, markers=None):
-    fill = parse_color(get_prop(elem, "fill", class_rules), defs)
-    stroke = parse_color(get_prop(elem, "stroke", class_rules), defs)
-    stroke_width = _num(get_prop(elem, "stroke-width", class_rules, 0), 0.0)
-    dasharray = get_prop(elem, "stroke-dasharray", class_rules)
-    opacity = _element_opacity(elem, class_rules)
+def _translate_shape(shape: "ShapeElem", offset) -> "ShapeElem":
+    """祖先<g transform="translate(...)">分のオフセットを座標に反映する。"""
+    dx, dy = offset
+    if dx == 0 and dy == 0:
+        return shape
+    if shape.kind in ("rect", "circle", "ellipse", "image"):
+        shape.x += dx
+        shape.y += dy
+    if shape.points:
+        shape.points = [(px + dx, py + dy) for px, py in shape.points]
+    return shape
+
+
+def _parse_shape_elem(elem, tag, defs, counter, style_rules=None, markers=None, inherited=None):
+    fill = parse_color(_prop(elem, "fill", style_rules, inherited), defs)
+    stroke = parse_color(_prop(elem, "stroke", style_rules, inherited), defs)
+    stroke_width = _num(_prop(elem, "stroke-width", style_rules, inherited, 0), 0.0)
+    dasharray = _prop(elem, "stroke-dasharray", style_rules, inherited)
+    try:
+        opacity = float(_prop(elem, "opacity", style_rules, inherited, 1.0))
+    except (TypeError, ValueError):
+        opacity = 1.0
     sid = f"shape_{counter}"
 
     if tag == "rect":
@@ -550,23 +632,24 @@ def parse_shapes(svg_path: str):
     tree = ET.parse(svg_path)
     root = tree.getroot()
     defs = _parse_defs(root)
-    class_rules = _parse_style_rules(root)
+    style_rules = _parse_style_rules(root)
     markers = _parse_markers(root)
     shapes = []
     counter = 0
-    for elem in _iter_recursive(root):
+    for elem, offset, inherited in _iter_recursive(root):
         tag = _tag(elem)
         if tag not in ("rect", "circle", "ellipse", "line", "polyline", "polygon", "path", "image"):
             continue
-        shape = _parse_shape_elem(elem, tag, defs, counter, class_rules, markers)
+        shape = _parse_shape_elem(elem, tag, defs, counter, style_rules, markers, inherited)
         if shape is None:
             continue
+        shape = _translate_shape(shape, offset)
         shapes.append(shape)
         counter += 1
 
         # marker-end(SVG標準の矢じり)は別のFreeform図形として追加する。
         if tag in ("line", "polyline", "path") and shape.points:
-            marker_id = _marker_url_id(get_prop(elem, "marker-end", class_rules))
+            marker_id = _marker_url_id(_prop(elem, "marker-end", style_rules, inherited))
             marker = markers.get(marker_id) if marker_id else None
             if marker:
                 angle = _line_angle(shape.points)
@@ -583,18 +666,18 @@ def parse_texts(svg_path: str):
     tree = ET.parse(svg_path)
     root = tree.getroot()
     defs = _parse_defs(root)
-    class_rules = _parse_style_rules(root)
+    style_rules = _parse_style_rules(root)
     texts = []
     counter = 0
-    for elem in _iter_recursive(root):
+    for elem, offset, inherited in _iter_recursive(root):
         if _tag(elem) != "text":
             continue
-        x = float(elem.get("x", 0))
-        y = float(elem.get("y", 0))
-        anchor = get_prop(elem, "text-anchor", class_rules, "start")
-        font_size = _num(get_prop(elem, "font-size", class_rules, 16), 16.0)
-        font_weight = str(get_prop(elem, "font-weight", class_rules, "400"))
-        fill = parse_color(get_prop(elem, "fill", class_rules, "#000000"), defs) or "000000"
+        x = float(elem.get("x", 0)) + offset[0]
+        y = float(elem.get("y", 0)) + offset[1]
+        anchor = _prop(elem, "text-anchor", style_rules, inherited, "start")
+        font_size = _num(_prop(elem, "font-size", style_rules, inherited, 16), 16.0)
+        font_weight = str(_prop(elem, "font-weight", style_rules, inherited, "400"))
+        fill = parse_color(_prop(elem, "fill", style_rules, inherited, "#000000"), defs) or "000000"
 
         lines = []
         line_dy = []
